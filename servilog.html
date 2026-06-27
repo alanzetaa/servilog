@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ServiLoG — Traslado de mercadería, ofertas en tiempo real</title>
+<meta name="description" content="ServiLoG publica oportunidades de traslado de mercadería y los transportistas ofertan. Gestión de envíos nacional." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<style>
+  :root{
+    --bg:#16323B; --panel:#F2F6F7; --ink:#1B3A43; --ink2:#3C535B;
+    --brand:#2196B0; --brand-d:#157089; --accent:#0E5A6E; --accent-d:#0A4451;
+    --gray:#8A969C; --gray-d:#6B777D;
+    --green:#10A45A; --red:#E5484D; --amber:#F5A524;
+    --surface:#FFFFFF; --border:#DDE6E9; --muted:#6E7B81; --soft:#F5F9FA;
+    --shadow:0 14px 40px rgba(20,55,65,.12); --shadow-s:0 6px 18px rgba(20,55,65,.07);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--panel);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;-webkit-font-smoothing:antialiased}
+  button,input,select,textarea{font-family:inherit;font-size:14px}
+  button{cursor:pointer}
+  .hidden{display:none!important}
+  a{color:var(--brand)}
+
+  /* ---------- Marca ---------- */
+  .brand{display:flex;align-items:center;gap:11px}
+  .logo-mark{width:44px;height:44px;border-radius:13px;background:linear-gradient(140deg,var(--brand),var(--brand-d));display:grid;place-items:center;box-shadow:0 8px 20px rgba(33,150,176,.38)}
+  .logo-mark svg{width:30px;height:30px}
+  .brand-name{font-weight:800;font-size:23px;letter-spacing:-.02em;color:var(--gray-d)}
+  .brand-name span{color:var(--brand);font-weight:900}
+
+  /* ---------- Botones ---------- */
+  .btn{border:0;border-radius:10px;padding:12px 17px;font-weight:800;display:inline-flex;align-items:center;gap:8px;min-height:42px;transition:.15s;white-space:nowrap}
+  .btn:hover{transform:translateY(-1px)}
+  .btn-primary{background:var(--brand);color:#fff}
+  .btn-primary:hover{background:var(--brand-d)}
+  .btn-accent{background:var(--accent);color:#fff}
+  .btn-accent:hover{background:var(--accent-d)}
+  .btn-dark{background:var(--ink);color:#fff}
+  .btn-ghost{background:#fff;color:var(--ink);border:1px solid var(--border)}
+  .btn-ghost:hover{border-color:var(--brand);color:var(--brand)}
+  .btn-green{background:var(--green);color:#fff}
+  .btn-red{background:var(--red);color:#fff}
+  .btn-gray{background:#5B6577;color:#fff}
+  .btn-small{padding:8px 12px;min-height:36px;font-size:12px;border-radius:9px}
+
+  /* ---------- Landing ---------- */
+  .landing{min-height:100vh;display:flex;flex-direction:column;padding:0 max(20px,5vw);background:
+     radial-gradient(1100px 540px at 78% -10%,rgba(33,150,176,.16),transparent 60%),
+     radial-gradient(900px 480px at 8% 110%,rgba(138,150,156,.16),transparent 55%),var(--panel)}
+  .landing-top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0;border-bottom:1px solid var(--border)}
+  .landing-top-actions{display:flex;gap:10px}
+  .hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:64px 12px;width:100%}
+  .eyebrow{display:inline-flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--border);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:.07em;margin-bottom:20px;box-shadow:var(--shadow-s)}
+  .eyebrow b{color:var(--accent)}
+  .hero h1{font-size:clamp(38px,6vw,76px);line-height:1.0;letter-spacing:-.045em;max-width:920px;margin:0 0 18px;font-weight:900}
+  .hero h1 span{background:linear-gradient(120deg,var(--brand),var(--gray-d));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .hero p{max-width:600px;font-size:19px;line-height:1.55;color:var(--ink2);margin:0 0 30px}
+  .hero-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+  .trust-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:42px;max-width:820px;width:100%}
+  .trust-item{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 14px;box-shadow:var(--shadow-s);position:relative}
+  .trust-item b{display:block;font-size:26px;color:var(--brand);margin-bottom:4px;font-weight:900}
+  .trust-item small{color:var(--muted);line-height:1.35;font-weight:600}
+  .step-line{display:flex;align-items:center;gap:7px;margin-top:42px;flex-wrap:wrap;justify-content:center;color:var(--ink2);font-weight:700;font-size:14px}
+  .step-chip{background:#fff;border:1px solid var(--border);border-radius:999px;padding:9px 15px;box-shadow:var(--shadow-s)}
+  .step-arrow{color:var(--accent);font-weight:900}
+
+  /* ---------- App shell ---------- */
+  .app{min-height:100vh;display:flex}
+  .sidebar{width:256px;background:var(--bg);color:#fff;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+  .sidebar .brand{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .sidebar .brand-name{color:#fff;font-size:21px}
+  .role-badge{margin:14px 18px 8px;padding:12px 13px;border-radius:12px;background:rgba(255,255,255,.06);font-size:13px;color:rgba(255,255,255,.92);line-height:1.4;border:1px solid rgba(255,255,255,.08)}
+  .role-badge small{color:rgba(255,255,255,.5);display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:800;margin-bottom:3px}
+  .nav{padding:8px 12px;flex:1;overflow:auto}
+  .nav button{width:100%;border:0;background:transparent;color:rgba(255,255,255,.6);display:flex;gap:11px;align-items:center;text-align:left;border-radius:10px;padding:11px 13px;margin:3px 0;font-weight:700;position:relative;transition:.15s}
+  .nav button:hover{background:rgba(255,255,255,.05);color:#fff}
+  .nav button.active{background:var(--brand);color:#fff;box-shadow:0 6px 18px rgba(27,89,248,.4)}
+  .nav .ico{width:22px;text-align:center;font-size:16px}
+  .nav-dot{width:9px;height:9px;border-radius:99px;background:var(--accent);box-shadow:0 0 0 3px rgba(255,122,26,.25);margin-left:auto}
+  .logout{padding:14px;border-top:1px solid rgba(255,255,255,.08)}
+  main{flex:1;padding:30px 36px;overflow:auto}
+
+  /* ---------- Bloques comunes ---------- */
+  .topline{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+  h2{font-size:28px;letter-spacing:-.03em;margin:0 0 5px;font-weight:900}
+  .sub{color:var(--muted);margin:0;font-size:14px;line-height:1.5}
+  .grid-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+  .kpi{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 17px;box-shadow:var(--shadow-s)}
+  .kpi label{font-size:12px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+  .kpi strong{display:block;font-size:30px;margin:5px 0 0;font-weight:900;letter-spacing:-.02em}
+  .kpi small{color:var(--brand);font-weight:700;font-size:12px}
+  .kpi.accent strong{color:var(--accent)}
+
+  .card{background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-s)}
+  .list{display:flex;flex-direction:column;gap:11px}
+  .row{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;justify-content:space-between;gap:18px;align-items:center;box-shadow:var(--shadow-s);transition:.15s}
+  .row:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+  .row h3{font-size:15px;margin:0 0 5px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .row p{margin:0 0 3px;color:var(--ink2);font-size:13px;line-height:1.5}
+  .row p.meta{color:var(--muted);font-size:12.5px}
+  .row-actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+  .route-mini{display:flex;align-items:center;gap:7px;font-weight:800;font-size:13px;color:var(--ink);margin-bottom:6px}
+  .route-mini .arr{color:var(--accent);font-weight:900}
+  .money{font-size:22px;font-weight:900;white-space:nowrap;letter-spacing:-.02em}
+  .muted{color:var(--muted)}
+  .empty{padding:34px 22px;color:var(--muted);text-align:center;line-height:1.5}
+  .empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:6px}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;border-radius:7px;padding:4px 9px;font-size:11px;font-weight:800;letter-spacing:.01em}
+  .b-blue{background:#E7EEFF;color:var(--brand-d)}
+  .b-orange{background:#FFEEDD;color:var(--accent-d)}
+  .b-green{background:#DFF5E9;color:#0B7C43}
+  .b-red{background:#FCE5E6;color:#C2282C}
+  .b-gray{background:#EDF0F5;color:var(--muted)}
+  .b-amber{background:#FEF3D6;color:#A6750A}
+
+  .veh-chip{display:inline-flex;align-items:center;gap:6px;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12.5px;font-weight:700}
+
+  /* ---------- Formularios ---------- */
+  .form{max-width:860px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .form-grid.three{grid-template-columns:1fr 1fr 1fr}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:900;margin-bottom:6px}
+  .field input,.field select,.field textarea{width:100%;border:1.5px solid var(--border);background:var(--soft);border-radius:10px;padding:12px 13px;font-size:14px;color:var(--ink);outline:none;transition:.15s}
+  .field textarea{min-height:84px;resize:vertical}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 3px rgba(27,89,248,.12)}
+  .veh-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .veh-checks label{border:1.5px solid var(--border);border-radius:11px;padding:11px 12px;background:#fff;font-size:13px;font-weight:700;display:flex;gap:9px;align-items:center;text-transform:none;letter-spacing:0;color:var(--ink);margin:0;cursor:pointer;transition:.15s}
+  .veh-checks label:hover{border-color:var(--brand)}
+  .veh-checks input:checked + span{color:var(--brand)}
+  .veh-checks label:has(input:checked){border-color:var(--brand);background:#EEF3FF}
+
+  /* ---------- Modal / toast ---------- */
+  .modal-bg{position:fixed;inset:0;background:rgba(15,23,41,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;backdrop-filter:blur(2px)}
+  .modal{background:#fff;border-radius:18px;border:1px solid var(--border);box-shadow:var(--shadow);width:min(720px,96vw);padding:26px;max-height:92vh;overflow:auto}
+  .modal h3{font-size:23px;font-weight:900;margin:0 0 8px;letter-spacing:-.02em}
+  .modal>p{color:var(--muted);margin:0 0 18px;line-height:1.5}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;flex-wrap:wrap}
+  .toast{position:fixed;right:22px;bottom:22px;background:var(--ink);color:#fff;border-radius:13px;padding:14px 18px;box-shadow:var(--shadow);font-size:13.5px;font-weight:700;z-index:80;max-width:340px;line-height:1.4}
+
+  .role-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+  .role-choice-card{border:1.5px solid var(--border);background:#fff;border-radius:14px;padding:18px;text-align:left;transition:.15s}
+  .role-choice-card:hover{border-color:var(--brand);background:#F6F9FF;transform:translateY(-2px)}
+  .role-choice-card .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;margin-bottom:12px}
+  .role-choice-card b{display:block;font-size:17px;margin-bottom:6px}
+  .role-choice-card small{display:block;color:var(--muted);line-height:1.45}
+
+  /* ---------- Mapa ---------- */
+  .map-toolbar{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:12px;margin-bottom:14px;box-shadow:var(--shadow-s)}
+  .map-toolbar .field{margin:0}
+  .map-toolbar input,.map-toolbar select{background:#fff}
+  .map-card{overflow:hidden}
+  .map-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap;font-weight:600}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:99px;margin-right:5px;vertical-align:middle}
+  .leaflet-map{height:600px;width:100%;background:#DCE6F2}
+  .fallback-map{position:relative;height:560px;width:100%;overflow:hidden;background:#DCE6F2;display:grid;place-items:center;color:var(--muted);text-align:center;padding:30px}
+  .leaflet-popup-content{font-family:Inter,sans-serif;margin:13px 15px;min-width:210px}
+  .leaflet-popup-content h3{margin:0 0 5px;font-size:15px}
+  .leaflet-popup-content p{margin:0 0 7px;color:#555;font-size:12px;line-height:1.4}
+  .leaflet-popup-content .pa{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .leaflet-popup-content .btn{padding:7px 10px;font-size:11px;border-radius:8px;min-height:auto}
+  .truck-pin{position:relative;width:34px;height:46px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.3))}
+  .truck-pin .pb{width:34px;height:34px;border-radius:50% 50% 50% 0;background:var(--pc,#1B59F8);border:3px solid #fff;position:absolute;top:0;transform:rotate(-45deg)}
+  .truck-pin .pi{position:absolute;top:4px;left:5px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:14px;z-index:2}
+
+  /* ---------- Detalle / timeline ---------- */
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+  .detail-cell{background:var(--soft);border:1px solid var(--border);border-radius:11px;padding:11px 13px}
+  .detail-cell small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin-bottom:3px}
+  .detail-cell b{font-size:14px}
+  .timeline{display:flex;gap:0;margin:10px 0 4px;flex-wrap:wrap}
+  .tl-step{flex:1;min-width:90px;text-align:center;position:relative;font-size:11px;font-weight:700;color:var(--muted);padding-top:22px}
+  .tl-step:before{content:'';position:absolute;top:6px;left:50%;width:13px;height:13px;border-radius:99px;background:#D5DCE8;transform:translateX(-50%);z-index:2}
+  .tl-step:after{content:'';position:absolute;top:12px;left:50%;width:100%;height:3px;background:#D5DCE8;z-index:1}
+  .tl-step:last-child:after{display:none}
+  .tl-step.done{color:var(--green)}
+  .tl-step.done:before{background:var(--green)}
+  .tl-step.done:after{background:var(--green)}
+  .tl-step.current:before{background:var(--accent);box-shadow:0 0 0 4px rgba(255,122,26,.2)}
+  .tl-step.current{color:var(--accent-d)}
+
+  @media(max-width:920px){
+    .app{display:block}.sidebar{width:100%;height:auto;position:relative}
+    .nav{display:flex;overflow:auto}.nav button{white-space:nowrap}.logout{display:none}
+    main{padding:22px 16px}
+    .grid-kpi{grid-template-columns:1fr 1fr}
+    .form-grid,.form-grid.three,.veh-checks,.role-choice-grid,.map-toolbar,.detail-grid{grid-template-columns:1fr}
+    .trust-strip{grid-template-columns:1fr 1fr}
+    .row{flex-direction:column;align-items:stretch}.row-actions{justify-content:flex-start}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== LANDING ===================== -->
+<section id="landing" class="landing">
+  <header class="landing-top">
+    <div class="brand">
+      <div class="logo-mark">
+        <svg viewBox="0 0 28 26" fill="none" aria-hidden="true">
+          <path d="M2.5 16.5C10.5 14.5 16.5 11 26 3c-3.6 6.8-10.5 11-18.8 13.7-2 .7-3.9.6-4.7-.2z" fill="#fff" opacity=".5"/>
+          <path d="M3.5 21.5C12.5 19.5 19.5 15 27 8c-4.8 8-12.8 13-21.8 15-1.4.3-2.4 0-1.7-1.5z" fill="#fff"/>
+        </svg>
+      </div>
+      <div class="brand-name">Servi<span>LoG</span></div>
+    </div>
+    <div class="landing-top-actions">
+      <button class="btn btn-ghost" onclick="openRegister()">Registrarme</button>
+      <button class="btn btn-primary" onclick="openLogin()">Ingresar</button>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Servicios Logísticos Generales · <b>Para transportistas</b></div>
+    <h1>Te llegan las ofertas de carga <span>que encajan con tu vehículo.</span></h1>
+    <p>Registrate, cargá tu flota y recibí oportunidades de traslado a tu medida. Ofertás tu precio y, si te elegimos, salís a la ruta. Sin buscar trabajo: el trabajo te encuentra.</p>
+    <div class="hero-actions">
+      <button class="btn btn-accent" onclick="openRegister('proveedor')">Quiero recibir ofertas →</button>
+      <button class="btn btn-dark" onclick="loginAs('empresa')">Ingresar como ServiLoG (demo)</button>
+    </div>
+    <div class="step-line">
+      <span class="step-chip">Te registrás y cargás tu flota</span><span class="step-arrow">→</span>
+      <span class="step-chip">Recibís ofertas para tu vehículo</span><span class="step-arrow">→</span>
+      <span class="step-chip">Ofertás tu precio</span><span class="step-arrow">→</span>
+      <span class="step-chip">Ganás el viaje</span>
+    </div>
+    <div class="trust-strip">
+      <div class="trust-item"><b id="ls-traslados">0</b><small>Traslados publicados</small></div>
+      <div class="trust-item"><b id="ls-ofertas">0</b><small>Ofertas recibidas</small></div>
+      <div class="trust-item"><b id="ls-proveedores">0</b><small>Transportistas</small></div>
+      <div class="trust-item"><b id="ls-entregados">0</b><small>Entregas completadas</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== APP ===================== -->
+<section id="app" class="app hidden">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo-mark">
+        <svg viewBox="0 0 28 26" fill="none"><path d="M2.5 16.5C10.5 14.5 16.5 11 26 3c-3.6 6.8-10.5 11-18.8 13.7-2 .7-3.9.6-4.7-.2z" fill="#fff" opacity=".5"/><path d="M3.5 21.5C12.5 19.5 19.5 15 27 8c-4.8 8-12.8 13-21.8 15-1.4.3-2.4 0-1.7-1.5z" fill="#fff"/></svg>
+      </div>
+      <div class="brand-name">Servi<span>LoG</span></div>
+    </div>
+    <div class="role-badge" id="roleBadge"></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="logout"><button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="logout()">Cerrar sesión</button></div>
+  </aside>
+  <main><div id="view"></div></main>
+</section>
+
+<div id="modalRoot"></div>
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+/* =====================================================
+   ServiLoG · Demo autónomo (localStorage)
+   1. Configuración y datos base
+   ===================================================== */
+const LS_KEY='servilog_db_v1';
+const SES_KEY='servilog_session';
+
+/* Ciudades de Argentina con coordenadas */
+const CIUDADES={
+  'CABA / Buenos Aires':[-34.6037,-58.3816],'La Plata':[-34.9215,-57.9545],'Mar del Plata':[-38.0055,-57.5426],
+  'Bahía Blanca':[-38.7183,-62.2663],'Córdoba':[-31.4201,-64.1888],'Rosario':[-32.9442,-60.6505],
+  'Santa Fe':[-31.6333,-60.7000],'Paraná':[-31.7319,-60.5238],'Mendoza':[-32.8895,-68.8458],
+  'San Juan':[-31.5375,-68.5364],'San Luis':[-33.3017,-66.3378],'San Miguel de Tucumán':[-26.8083,-65.2176],
+  'Salta':[-24.7821,-65.4232],'San Salvador de Jujuy':[-24.1858,-65.2995],'Santiago del Estero':[-27.7951,-64.2615],
+  'Resistencia':[-27.4514,-58.9867],'Corrientes':[-27.4692,-58.8306],'Posadas':[-27.3621,-55.9008],
+  'Formosa':[-26.1849,-58.1731],'Neuquén':[-38.9516,-68.0591],'Santa Rosa':[-36.6167,-64.2833],
+  'Viedma':[-40.8135,-62.9967],'San Carlos de Bariloche':[-41.1335,-71.3103],'Comodoro Rivadavia':[-45.8641,-67.4966],
+  'Río Gallegos':[-51.6230,-69.2168],'Ushuaia':[-54.8019,-68.3030],'Catamarca':[-28.4696,-65.7852],
+  'La Rioja':[-29.4131,-66.8558]
+};
+const CIUDAD_NOMBRES=Object.keys(CIUDADES);
+
+/* Tipos de vehículo */
+const VEHICULOS=[
+  ['moto','🏍️','Moto','Hasta 20 kg · documentación, paquetería chica'],
+  ['auto','🚗','Auto','Hasta 100 kg · encomiendas, paquetería'],
+  ['furgoneta','🚐','Furgoneta','Hasta 800 kg · cargas medianas'],
+  ['furgon','🚚','Furgón','Hasta 1.500 kg · mudanzas chicas, pallets'],
+  ['camioneta','🛻','Camioneta / Pick-up','Hasta 1.000 kg · cargas abiertas'],
+  ['camion_chico','🚛','Camión chico','Hasta 5 toneladas'],
+  ['camion','🚛','Camión semi','Hasta 15 toneladas'],
+  ['acoplado','🚜','Camión con acoplado','Hasta 30 toneladas · larga distancia'],
+  ['refrigerado','❄️','Refrigerado','Cadena de frío · perecederos'],
+  ['contenedor','📦','Porta-contenedor','Contenedores / carga consolidada']
+];
+function vehLabel(id){const v=VEHICULOS.find(x=>x[0]===id);return v?`${v[1]} ${v[2]}`:id}
+function vehIcon(id){const v=VEHICULOS.find(x=>x[0]===id);return v?v[1]:'🚚'}
+
+const TIPOS_MERCADERIA=['Paquetería / encomiendas','Pallets','Mercadería general','Electrodomésticos','Materiales de construcción','Mudanza','Perecederos / refrigerado','Documentación','Maquinaria','Mercadería peligrosa','Otros'];
+const URGENCIAS=['Programado','Normal','Urgente','Inmediato'];
+
+const ESTADOS={
+  publicado:{label:'Publicado',badge:'b-blue',step:0},
+  recibiendo:{label:'Recibiendo ofertas',badge:'b-orange',step:1},
+  adjudicado:{label:'Adjudicado',badge:'b-amber',step:2},
+  en_ruta:{label:'En ruta',badge:'b-amber',step:3},
+  entregado:{label:'Entregado',badge:'b-green',step:4},
+  cancelado:{label:'Cancelado',badge:'b-gray',step:-1}
+};
+const TL_STEPS=[['publicado','Publicado'],['recibiendo','Ofertas'],['adjudicado','Adjudicado'],['en_ruta','En ruta'],['entregado','Entregado']];
+
+/* =====================================================
+   2. Base de datos local (localStorage)
+   ===================================================== */
+let DB={proveedores:[],traslados:[],ofertas:[]};
+function loadDB(){
+  try{const raw=localStorage.getItem(LS_KEY);if(raw){DB=JSON.parse(raw);return}}catch(e){}
+  seedDB();
+}
+function saveDB(){localStorage.setItem(LS_KEY,JSON.stringify(DB));actualizarLandingStats()}
+function uid(p='id'){return p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function nowISO(){return new Date().toISOString()}
+function hoyMas(dias){const d=new Date();d.setDate(d.getDate()+dias);return d.toISOString().slice(0,10)}
+
+function seedDB(){
+  const p1={id:'prov_demo1',rol:'proveedor',nombre:'Martín',apellido:'Sosa',empresa:'Sosa Cargas',cuit:'20-30111222-3',telefono:'+54 9 11 5555-1010',email:'martin@sosacargas.com',vehiculos:['furgon','camion_chico'],zonas:'AMBA y Litoral',pass:'demo',creado:nowISO()};
+  const p2={id:'prov_demo2',rol:'proveedor',nombre:'Lucía',apellido:'Fernández',empresa:'TransLuc',cuit:'27-28999888-1',telefono:'+54 9 351 444-2020',email:'lucia@transluc.com',vehiculos:['camion','acoplado','refrigerado'],zonas:'Centro y NOA',pass:'demo',creado:nowISO()};
+  const p3={id:'prov_demo3',rol:'proveedor',nombre:'Diego',apellido:'Ramírez',empresa:'',cuit:'20-35222333-9',telefono:'+54 9 11 4444-3030',email:'diego.ramirez@gmail.com',vehiculos:['moto','furgoneta'],zonas:'CABA',pass:'demo',creado:nowISO()};
+  const t1={id:uid('tr'),origen:'CABA / Buenos Aires',destino:'Córdoba',tipoMercaderia:'Pallets',peso:'8000',volumen:'12 pallets',vehiculoReq:'camion',urgencia:'Normal',fechaRetiro:hoyMas(2),presupuesto:380000,observaciones:'12 pallets de bebidas. Carga y descarga con autoelevador en ambos puntos. Horario de retiro: 8 a 12 hs.',estado:'recibiendo',proveedorAdjudicado:null,creado:nowISO()};
+  const t2={id:uid('tr'),origen:'Rosario',destino:'Mendoza',tipoMercaderia:'Perecederos / refrigerado',peso:'4500',volumen:'',vehiculoReq:'refrigerado',urgencia:'Urgente',fechaRetiro:hoyMas(1),presupuesto:290000,observaciones:'Cadena de frío obligatoria (2-6°C). Producto lácteo. Se requiere registro de temperatura.',estado:'publicado',proveedorAdjudicado:null,creado:nowISO()};
+  const t3={id:uid('tr'),origen:'CABA / Buenos Aires',destino:'Mar del Plata',tipoMercaderia:'Mudanza',peso:'2000',volumen:'casa 2 ambientes',vehiculoReq:'furgon',urgencia:'Programado',fechaRetiro:hoyMas(6),presupuesto:160000,observaciones:'Mudanza familiar. Incluye embalaje provisto por el cliente. 3er piso con ascensor en origen.',estado:'publicado',proveedorAdjudicado:null,creado:nowISO()};
+  const o1={id:uid('of'),trasladoId:t1.id,proveedorId:'prov_demo1',precio:360000,plazo:'Retiro 8hs, entrega mismo día',vehiculo:'camion_chico',comentario:'Tengo autoelevador propio. Seguro de carga incluido.',estado:'enviada',fecha:nowISO()};
+  const o2={id:uid('of'),trasladoId:t1.id,proveedorId:'prov_demo2',precio:345000,plazo:'48 hs',vehiculo:'camion',comentario:'Disponibilidad inmediata. Monitoreo satelital.',estado:'enviada',fecha:nowISO()};
+  DB={proveedores:[p1,p2,p3],traslados:[t1,t2,t3],ofertas:[o1,o2]};
+  saveDB();
+}
+
+/* =====================================================
+   3. Sesión / autenticación (simulada)
+   ===================================================== */
+let session=null; // {rol, id}
+function currentUser(){
+  if(!session) return null;
+  if(session.rol==='empresa') return {id:'servilog',rol:'empresa',nombre:'ServiLoG',empresa:'ServiLoG Operaciones'};
+  return DB.proveedores.find(p=>p.id===session.id)||null;
+}
+function saveSession(){session?localStorage.setItem(SES_KEY,JSON.stringify(session)):localStorage.removeItem(SES_KEY)}
+function loadSession(){try{const raw=localStorage.getItem(SES_KEY);if(raw)session=JSON.parse(raw)}catch(e){session=null}}
+
+let role='empresa', active='oportunidades';
+
+function loginAs(rol,id){
+  session={rol,id:id||null};saveSession();
+  enterApp();
+}
+function logout(){
+  session=null;saveSession();
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('landing').classList.remove('hidden');
+  actualizarLandingStats();
+}
+function enterApp(){
+  role=session.rol;
+  active=role==='empresa'?'oportunidades':'disponibles';
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  render();
+}
+
+/* ---- Modales de auth ---- */
+function openLogin(){
+  document.getElementById('modalRoot').innerHTML=`<div class="modal-bg"><div class="modal" style="max-width:460px"><h3>Ingresar</h3><p>Demo: ingresá como ServiLoG (gestión) o como un transportista registrado.</p>
+  <button class="btn btn-dark" style="width:100%;justify-content:center;margin-bottom:14px" onclick="loginAs('empresa');closeModal()">Entrar como ServiLoG (gestión)</button>
+  <div style="text-align:center;color:var(--muted);font-size:12px;font-weight:700;margin:8px 0">— o como transportista —</div>
+  <div class="field"><label>Email</label><input id="logEmail" type="email" placeholder="tu@email.com" autocomplete="off"></div>
+  <div class="field"><label>Contraseña</label><input id="logPass" type="password" placeholder="(en la demo: demo)" autocomplete="off"></div>
+  <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitLogin()">Entrar</button></div>
+  <p style="font-size:12px;color:var(--muted);margin:14px 0 0">¿No tenés cuenta? <a href="#" onclick="openRegister('proveedor');return false">Registrate como transportista</a>. Cuentas demo: martin@sosacargas.com / lucia@transluc.com (pass: demo)</p></div></div>`;
+}
+function submitLogin(){
+  const email=(document.getElementById('logEmail').value||'').trim().toLowerCase();
+  const pass=document.getElementById('logPass').value||'';
+  const prov=DB.proveedores.find(p=>p.email.toLowerCase()===email);
+  if(!prov){toast('No encontramos ese email. Probá registrarte.');return}
+  if(prov.pass && prov.pass!==pass){toast('Contraseña incorrecta (en la demo es: demo)');return}
+  closeModal();loginAs('proveedor',prov.id);toast('¡Hola '+prov.nombre+'!');
+}
+function openRegister(pref){
+  document.getElementById('modalRoot').innerHTML=`<div class="modal-bg"><div class="modal"><h3>Registro de transportista</h3><p>Completá tus datos. Con tu email y WhatsApp te llegarán las oportunidades de traslado que coincidan con tus vehículos.</p>
+  <div class="form-grid">
+    <div class="field"><label>Nombre *</label><input id="rNombre" placeholder="Ej: Martín" autocomplete="off"></div>
+    <div class="field"><label>Apellido *</label><input id="rApellido" placeholder="Ej: Sosa" autocomplete="off"></div>
+    <div class="field"><label>Empresa / razón social (opcional)</label><input id="rEmpresa" placeholder="Ej: Sosa Cargas" autocomplete="off"></div>
+    <div class="field"><label>CUIT / CUIL *</label><input id="rCuit" placeholder="Ej: 20-30111222-3" autocomplete="off"></div>
+    <div class="field"><label>Teléfono / WhatsApp *</label><input id="rTel" placeholder="Ej: +54 9 11 5555-1010" autocomplete="off"></div>
+    <div class="field"><label>Email *</label><input id="rEmail" type="email" placeholder="tu@email.com" autocomplete="off"></div>
+    <div class="field"><label>Contraseña *</label><input id="rPass" type="password" placeholder="Mínimo 4 caracteres" autocomplete="off"></div>
+    <div class="field"><label>Zonas donde operás (opcional)</label><input id="rZonas" placeholder="Ej: AMBA y Litoral" autocomplete="off"></div>
+  </div>
+  <div class="field"><label>¿Qué vehículos tenés? * (elegí uno o más)</label><div class="veh-checks">${VEHICULOS.map(v=>`<label><input type="checkbox" value="${v[0]}"><span>${v[1]} ${v[2]}</span></label>`).join('')}</div></div>
+  <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-accent" onclick="submitRegister()">Crear cuenta</button></div></div></div>`;
+}
+function submitRegister(){
+  const get=id=>(document.getElementById(id).value||'').trim();
+  const nombre=get('rNombre'),apellido=get('rApellido'),cuit=get('rCuit'),tel=get('rTel'),email=get('rEmail').toLowerCase(),pass=get('rPass');
+  const vehiculos=[...document.querySelectorAll('.veh-checks input:checked')].map(c=>c.value);
+  if(!nombre||!apellido||!cuit||!tel||!email||!pass){toast('Completá todos los campos obligatorios (*)');return}
+  if(pass.length<4){toast('La contraseña debe tener al menos 4 caracteres');return}
+  if(!vehiculos.length){toast('Seleccioná al menos un tipo de vehículo');return}
+  if(DB.proveedores.some(p=>p.email.toLowerCase()===email)){toast('Ya existe una cuenta con ese email');return}
+  const prov={id:uid('prov'),rol:'proveedor',nombre,apellido,empresa:get('rEmpresa'),cuit,telefono:tel,email,pass,zonas:get('rZonas'),vehiculos,creado:nowISO()};
+  DB.proveedores.push(prov);saveDB();
+  closeModal();loginAs('proveedor',prov.id);
+  toast('¡Cuenta creada! Bienvenido '+nombre);
+}
+
+/* =====================================================
+   4. Navegación
+   ===================================================== */
+const navEmpresa=[['oportunidades','📋','Oportunidades'],['nuevo','➕','Publicar traslado'],['mapa','🗺️','Mapa de envíos'],['ofertas','💬','Ofertas recibidas'],['adjudicados','🚚','En curso'],['historial','✅','Historial'],['transportistas','👥','Transportistas']];
+const navProveedor=[['disponibles','🎯','Oportunidades'],['mapa','🗺️','Mapa'],['mispostulaciones','💬','Mis ofertas'],['misviajes','🚚','Mis viajes'],['perfil','👤','Mi perfil']];
+
+function navItems(){return role==='empresa'?navEmpresa:navProveedor}
+function setActive(id){active=id;render()}
+
+function renderNav(){
+  const u=currentUser();
+  document.getElementById('roleBadge').innerHTML=role==='empresa'
+    ? `<small>Gestión</small>ServiLoG Operaciones`
+    : `<small>Transportista</small>${u.nombre} ${u.apellido}${u.empresa?`<br><span style="color:rgba(255,255,255,.5);font-size:12px">${u.empresa}</span>`:''}`;
+  const nuevas=role==='proveedor'?oportunidadesParaProveedor().filter(t=>!yaOferto(t.id)).length:0;
+  document.getElementById('nav').innerHTML=navItems().map(([id,ico,label])=>{
+    const dot=(role==='proveedor'&&id==='disponibles'&&nuevas)?`<span class="nav-dot" title="${nuevas} nuevas"></span>`:'';
+    return `<button class="${active===id?'active':''}" onclick="setActive('${id}')"><span class="ico">${ico}</span>${label}${dot}</button>`;
+  }).join('');
+}
+
+/* =====================================================
+   5. Helpers de datos
+   ===================================================== */
+function money(n){return n?'$'+Number(n).toLocaleString('es-AR'):'A convenir'}
+function ofertasDe(tid){return DB.ofertas.filter(o=>o.trasladoId===tid)}
+function trasladoById(id){return DB.traslados.find(t=>t.id===id)}
+function provById(id){return DB.proveedores.find(p=>p.id===id)}
+function provNombre(id){const p=provById(id);return p?(p.empresa||`${p.nombre} ${p.apellido}`):'Transportista'}
+function esActivo(t){return !['entregado','cancelado'].includes(t.estado)}
+function yaOferto(tid){return DB.ofertas.some(o=>o.trasladoId===tid&&o.proveedorId===session.id)}
+function miOferta(tid){return DB.ofertas.find(o=>o.trasladoId===tid&&o.proveedorId===session.id)}
+
+/* El proveedor SOLO ve oportunidades abiertas cuyo vehículo requerido tenga en su flota */
+function coincideVehiculo(t){
+  const u=currentUser();
+  if(!u||!u.vehiculos) return false;
+  return u.vehiculos.includes(t.vehiculoReq);
+}
+function oportunidadesParaProveedor(){
+  return DB.traslados.filter(t=>['publicado','recibiendo'].includes(t.estado)&&coincideVehiculo(t));
+}
+
+let mapFilters={origen:'Todas',destino:'Todas',vehiculo:'Todos',estado:'Todos',texto:''};
+function setMapFilter(k,v){mapFilters[k]=v;render()}
+
+function trasladosFiltradosMapa(){
+  const base=role==='empresa'?DB.traslados:oportunidadesParaProveedor();
+  const txt=(mapFilters.texto||'').toLowerCase().trim();
+  return base.filter(t=>{
+    if(t.estado==='cancelado'&&mapFilters.estado!=='cancelado') return false;
+    if(mapFilters.origen!=='Todas'&&t.origen!==mapFilters.origen) return false;
+    if(mapFilters.destino!=='Todas'&&t.destino!==mapFilters.destino) return false;
+    if(mapFilters.vehiculo!=='Todos'&&t.vehiculoReq!==mapFilters.vehiculo) return false;
+    if(mapFilters.estado!=='Todos'&&t.estado!==mapFilters.estado) return false;
+    if(txt&&!`${t.origen} ${t.destino} ${t.tipoMercaderia} ${t.observaciones}`.toLowerCase().includes(txt)) return false;
+    return true;
+  });
+}
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');clearTimeout(window._tt);window._tt=setTimeout(()=>t.classList.add('hidden'),2800)}
+function closeModal(){document.getElementById('modalRoot').innerHTML=''}
+function badge(estado){const e=ESTADOS[estado]||{label:estado,badge:'b-gray'};return `<span class="badge ${e.badge}">${e.label}</span>`}
+function timeline(estado){
+  if(estado==='cancelado') return `<div class="badge b-gray" style="margin:6px 0">Traslado cancelado</div>`;
+  const cur=ESTADOS[estado]?.step??0;
+  return `<div class="timeline">${TL_STEPS.map(([k,l],i)=>{const cls=i<cur?'done':i===cur?'current':'';return `<div class="tl-step ${cls}">${l}</div>`}).join('')}</div>`;
+}
+function routeChip(t){return `<span class="route-mini">${t.origen} <span class="arr">→</span> ${t.destino}</span>`}
+
+/* =====================================================
+   6. Render principal
+   ===================================================== */
+function render(){
+  renderNav();
+  const v=document.getElementById('view');
+  const map={
+    oportunidades:viewOportunidadesEmpresa, nuevo:viewNuevo, ofertas:viewOfertas,
+    adjudicados:viewAdjudicados, historial:viewHistorial, transportistas:viewTransportistas,
+    disponibles:viewDisponibles, mispostulaciones:viewMisPostulaciones, misviajes:viewMisViajes, perfil:viewPerfil
+  };
+  if(active==='mapa'){v.innerHTML=viewMapa();setTimeout(initMapa,200);return}
+  v.innerHTML=(map[active]||(()=>'<div class="card empty">Sección en construcción</div>'))();
+}
+
+/* =====================================================
+   7. EMPRESA · Oportunidades (traslados publicados)
+   ===================================================== */
+function kpisEmpresa(){
+  const activos=DB.traslados.filter(esActivo).length;
+  const recibiendo=DB.traslados.filter(t=>['publicado','recibiendo'].includes(t.estado)).length;
+  const enCurso=DB.traslados.filter(t=>['adjudicado','en_ruta'].includes(t.estado)).length;
+  const entregados=DB.traslados.filter(t=>t.estado==='entregado').length;
+  return `<div class="grid-kpi">
+    <div class="kpi"><label>Traslados activos</label><strong>${activos}</strong><small>en gestión</small></div>
+    <div class="kpi accent"><label>Esperando ofertas</label><strong>${recibiendo}</strong><small>${DB.ofertas.length} ofertas totales</small></div>
+    <div class="kpi"><label>En curso</label><strong>${enCurso}</strong><small>adjudicados + en ruta</small></div>
+    <div class="kpi"><label>Entregados</label><strong>${entregados}</strong><small>históricos</small></div>
+  </div>`;
+}
+function viewOportunidadesEmpresa(){
+  const activos=DB.traslados.filter(t=>['publicado','recibiendo'].includes(t.estado));
+  return `<div class="topline"><div><h2>Oportunidades de traslado</h2><p class="sub">Traslados publicados esperando ofertas de transportistas.</p></div><button class="btn btn-accent" onclick="setActive('nuevo')">➕ Publicar traslado</button></div>
+  ${kpisEmpresa()}
+  <div class="list">${activos.length?activos.map(rowTrasladoEmpresa).join(''):'<div class="card empty"><b>No hay traslados esperando ofertas</b>Publicá tu primer traslado para que los transportistas empiecen a ofertar.<br><br><button class="btn btn-accent" onclick="setActive(\'nuevo\')">➕ Publicar traslado</button></div>'}</div>`;
+}
+function rowTrasladoEmpresa(t){
+  const os=ofertasDe(t.id);
+  return `<div class="row"><div style="flex:1">
+    ${routeChip(t)}
+    <h3>${vehIcon(t.vehiculoReq)} ${t.tipoMercaderia} ${badge(t.estado)} ${t.urgencia==='Urgente'||t.urgencia==='Inmediato'?'<span class="badge b-red">'+t.urgencia+'</span>':''}</h3>
+    <p>${t.peso?t.peso+' kg · ':''}${vehLabel(t.vehiculoReq)} · Retiro: ${t.fechaRetiro||'a coordinar'}</p>
+    <p class="meta">${os.length} oferta${os.length===1?'':'s'} recibida${os.length===1?'':'s'} · Presupuesto ref.: ${money(t.presupuesto)}</p>
+  </div><div class="row-actions">
+    <div class="money">${money(t.presupuesto)}</div>
+    <button class="btn btn-ghost btn-small" onclick="openDetalle('${t.id}')">Ver / ofertas (${os.length})</button>
+    <button class="btn btn-ghost btn-small" onclick="openTrasladoModal('${t.id}')">Editar</button>
+    <button class="btn btn-gray btn-small" onclick="cancelarTraslado('${t.id}')">Cancelar</button>
+  </div></div>`;
+}
+
+/* =====================================================
+   8. EMPRESA · Publicar / editar traslado
+   ===================================================== */
+function trasladoFormHtml(prefix,d={}){
+  return `<div class="form-grid">
+    <div class="field"><label>Origen (retiro) *</label><select id="${prefix}Origen">${CIUDAD_NOMBRES.map(c=>`<option ${d.origen===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="field"><label>Destino (entrega) *</label><select id="${prefix}Destino">${CIUDAD_NOMBRES.map(c=>`<option ${d.destino===c?'selected':(!d.destino&&c==='Córdoba'?'selected':'')}>${c}</option>`).join('')}</select></div>
+    <div class="field"><label>Tipo de mercadería *</label><select id="${prefix}Tipo">${TIPOS_MERCADERIA.map(m=>`<option ${d.tipoMercaderia===m?'selected':''}>${m}</option>`).join('')}</select></div>
+    <div class="field"><label>Vehículo requerido *</label><select id="${prefix}Vehiculo">${VEHICULOS.map(v=>`<option value="${v[0]}" ${d.vehiculoReq===v[0]?'selected':''}>${v[1]} ${v[2]}</option>`).join('')}</select></div>
+    <div class="field"><label>Peso aproximado (kg)</label><input id="${prefix}Peso" type="number" min="0" value="${d.peso||''}" placeholder="Ej: 8000"></div>
+    <div class="field"><label>Volumen / detalle de carga</label><input id="${prefix}Volumen" value="${d.volumen||''}" placeholder="Ej: 12 pallets"></div>
+    <div class="field"><label>Fecha de retiro</label><input id="${prefix}Fecha" type="date" value="${d.fechaRetiro||''}"></div>
+    <div class="field"><label>Urgencia</label><select id="${prefix}Urgencia">${URGENCIAS.map(u=>`<option ${d.urgencia===u?'selected':''}>${u}</option>`).join('')}</select></div>
+    <div class="field"><label>Presupuesto de referencia ($)</label><input id="${prefix}Presupuesto" type="number" min="0" value="${d.presupuesto||''}" placeholder="Ej: 380000"></div>
+  </div>
+  <div class="field"><label>Observaciones e instrucciones</label><textarea id="${prefix}Obs" placeholder="Detallá condiciones de carga/descarga, horarios, seguro, requisitos especiales, etc.">${d.observaciones||''}</textarea></div>`;
+}
+function viewNuevo(){
+  return `<div class="topline"><div><h2>Publicar traslado</h2><p class="sub">Creá una oportunidad para que los transportistas verificados oferten.</p></div></div>
+  <div class="card form" style="padding:24px">${trasladoFormHtml('n')}<button class="btn btn-accent" onclick="crearTraslado()">Publicar traslado →</button></div>`;
+}
+function leerTrasladoForm(prefix){
+  const g=id=>document.getElementById(prefix+id);
+  const origen=g('Origen').value, destino=g('Destino').value;
+  if(origen===destino) throw new Error('El origen y el destino no pueden ser la misma ciudad');
+  return {origen,destino,tipoMercaderia:g('Tipo').value,vehiculoReq:g('Vehiculo').value,
+    peso:g('Peso').value,volumen:g('Volumen').value.trim(),fechaRetiro:g('Fecha').value,
+    urgencia:g('Urgencia').value,presupuesto:Number(g('Presupuesto').value)||0,observaciones:g('Obs').value.trim()};
+}
+function crearTraslado(){
+  try{
+    const data=leerTrasladoForm('n');
+    const t={id:uid('tr'),...data,estado:'publicado',proveedorAdjudicado:null,creado:nowISO()};
+    DB.traslados.push(t);saveDB();
+    toast('Traslado publicado. Los transportistas ya pueden ofertar.');
+    active='oportunidades';render();
+  }catch(e){toast(e.message)}
+}
+function openTrasladoModal(id){
+  const t=trasladoById(id);
+  document.getElementById('modalRoot').innerHTML=`<div class="modal-bg"><div class="modal"><h3>Editar traslado</h3>${trasladoFormHtml('m',t)}<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-accent" onclick="guardarTrasladoModal('${id}')">Guardar</button></div></div></div>`;
+}
+function guardarTrasladoModal(id){
+  try{
+    const data=leerTrasladoForm('m');
+    const t=trasladoById(id);Object.assign(t,data);saveDB();
+    closeModal();toast('Traslado actualizado');render();
+  }catch(e){toast(e.message)}
+}
+function cancelarTraslado(id){
+  const t=trasladoById(id);
+  document.getElementById('modalRoot').innerHTML=`<div class="modal-bg"><div class="modal" style="max-width:420px"><h3>Cancelar traslado</h3><p>Vas a cancelar el traslado <b>${t.origen} → ${t.destino}</b>. Pasará a Historial y los transportistas dejarán de verlo.</p><div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Volver</button><button class="btn btn-red" onclick="confirmarCancelar('${id}')">Cancelar traslado</button></div></div></div>`;
+}
+function confirmarCancelar(id){
+  const t=trasladoById(id);t.estado='cancelado';t.actualizado=nowISO();
+  DB.ofertas.filter(o=>o.trasladoId===id&&o.estado==='enviada').forEach(o=>o.estado='descartada');
+  saveDB();closeModal();toast('Traslado cancelado');render();
+}
+
+/* =====================================================
+   9. EMPRESA · Detalle + ofertas + adjudicación
+   ===================================================== */
+function openDetalle(id){
+  const t=trasladoById(id);const os=ofertasDe(id).slice().sort((a,b)=>a.precio-b.precio);
+  const adj=os.find(o=>o.estado==='adjudicada');
+  const ofHtml=os.length?os.map(o=>ofertaRow(o,t,adj)).join(''):'<div class="empty" style="padding:18px">Todavía no hay ofertas para este traslado.</div>';
+  document.getElementById('modalRoot').innerHTML=`<div class="modal-bg"><div class="modal">
+    <h3>${t.origen} → ${t.destino}</h3>
+    <p>${vehIcon(t.vehiculoReq)} ${t.tipoMercaderia} · ${vehLabel(t.vehiculoReq)} ${badge(t.estado)}</p>
+    ${timeline(t.estado)}
+    <div class="detail-grid">
+      <div class="detail-cell"><small>Peso</small><b>${t.peso?t.peso+' kg':'No especificado'}</b></div>
+      <div class="detail-cell"><small>Volumen / carga</small><b>${t.volumen||'—'}</b></div>
+      <div class="detail-cell"><small>Retiro</small><b>${t.fechaRetiro||'A coordinar'}</b></div>
+      <div class="detail-cell"><small>Urgencia</small><b>${t.urgencia}</b></div>
+      <div class="detail-cell"><small>Presupuesto ref.</small><b>${money(t.presupuesto)}</b></div>
+      <div class="detail-cell"><small>Ofertas</small><b>${os.length}</b></div>
+    </div>
+    <p style="font-size:13px;color:var(--ink2);line-height:1.5">${t.observaciones||'Sin observaciones.'}</p>
+    <h3 style="font-size:17px;margin:18px 0 10px">Ofertas recibidas</h3>
+    <div class="list">${ofHtml}</div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cerrar</button></div>
+  </div></div>`;
+}
+function ofertaRow(o,t,adj){
+  const p=provById(o.proveedorId);
+  const esAdj=o.estado==='adjudicada';
+  const datos=role==='empresa'?`${p?p.telefono:''}${p&&esAdj?' · '+p.email:''}`:'';
+  const accion=role==='empresa'&&!adj&&['publicado','recibiendo'].includes(t.estado)
+    ? `<button class="btn btn-green btn-small" onclick="adjudicar('${o.id}')">Adjudicar</button>`
+    : (esAdj?'<span class="badge b-green">Adjudicada</span>':(adj?'<span class="badge b-gray">No adjudicada</span>':''));
+  return `<div class="row"><div style="flex:1">
+    <h3>${provNombre(o.proveedorId)} ${esAdj?'<span class="badge b-green">Ganadora</span>':''}</h3>
+    <p>${vehIcon(o.vehiculo)} ${vehLabel(o.vehiculo)} · Plazo: ${o.plazo}</p>
+    <p class="meta">${o.comentario||'Sin comentario'}${datos?' · 📞 '+datos:''}</p>
+  </div><div class="row-actions"><div class="money">${money(o.precio)}</div>${accion}</div></div>`;
+}
+function adjudicar(ofertaId){
+  const o=DB.ofertas.find(x=>x.id===ofertaId);const t=trasladoById(o.trasladoId);
+  DB.ofertas.filter(x=>x.trasladoId===t.id).forEach(x=>x.estado=x.id===ofertaId?'adjudicada':'rechazada');
+  t.estado='adjudicado';t.proveedorAdjudicado=o.proveedorId;t.actualizado=nowISO();
+  saveDB();closeModal();toast('Adjudicado a '+provNombre(o.proveedorId));render();
+}
+
+/* =====================================================
+   10. EMPRESA · Ofertas / En curso / Historial / Transportistas
+   ===================================================== */
+function viewOfertas(){
+  const conOfertas=DB.traslados.filter(t=>ofertasDe(t.id).length&&['publicado','recibiendo'].includes(t.estado));
+  return `<div class="topline"><div><h2>Ofertas recibidas</h2><p class="sub">Compará propuestas por precio, vehículo y plazo. Adjudicá la mejor.</p></div></div>
+  <div class="list">${conOfertas.length?conOfertas.map(t=>{
+    const os=ofertasDe(t.id).slice().sort((a,b)=>a.precio-b.precio);
+    return `<div class="card" style="padding:18px">
+      ${routeChip(t)}
+      <h3 style="margin:0 0 4px">${vehIcon(t.vehiculoReq)} ${t.tipoMercaderia} ${badge(t.estado)}</h3>
+      <p class="sub" style="margin-bottom:12px">${os.length} oferta${os.length===1?'':'s'} · Presupuesto ref. ${money(t.presupuesto)} · mejor oferta ${money(os[0].precio)}</p>
+      <div class="list">${os.map(o=>`<div class="row"><div style="flex:1"><h3>${provNombre(o.proveedorId)}</h3><p>${vehIcon(o.vehiculo)} ${vehLabel(o.vehiculo)} · ${o.plazo}</p><p class="meta">${o.comentario||'Sin comentario'}</p></div><div class="row-actions"><div class="money">${money(o.precio)}</div><button class="btn btn-green btn-small" onclick="adjudicarInline('${o.id}')">Adjudicar</button></div></div>`).join('')}</div>
+    </div>`;
+  }).join(''):'<div class="card empty"><b>Sin ofertas por ahora</b>Cuando los transportistas oferten en tus traslados, vas a poder compararlas acá.</div>'}</div>`;
+}
+function adjudicarInline(ofertaId){adjudicar(ofertaId)}
+
+function viewAdjudicados(){
+  const enCurso=DB.traslados.filter(t=>['adjudicado','en_ruta'].includes(t.estado));
+  return `<div class="topline"><div><h2>Traslados en curso</h2><p class="sub">Adjudicados y en ruta. Seguí el estado hasta la entrega.</p></div></div>
+  <div class="list">${enCurso.length?enCurso.map(t=>{
+    const adj=ofertasDe(t.id).find(o=>o.estado==='adjudicada');const p=provById(t.proveedorAdjudicado);
+    return `<div class="card" style="padding:18px">${routeChip(t)}<h3 style="margin:0 0 4px">${vehIcon(t.vehiculoReq)} ${t.tipoMercaderia} ${badge(t.estado)}</h3>${timeline(t.estado)}
+    <p style="margin:8px 0">Transportista: <b>${provNombre(t.proveedorAdjudicado)}</b>${p?` · 📞 ${p.telefono} · ✉️ ${p.email}`:''} · ${adj?money(adj.precio):''}</p>
+    <div class="row-actions">${t.estado==='adjudicado'?`<button class="btn btn-primary btn-small" onclick="cambiarEstado('${t.id}','en_ruta')">🚚 Marcar en ruta</button>`:''}${t.estado==='en_ruta'?`<button class="btn btn-green btn-small" onclick="cambiarEstado('${t.id}','entregado')">✅ Marcar entregado</button>`:''}<button class="btn btn-gray btn-small" onclick="cancelarTraslado('${t.id}')">Cancelar</button></div></div>`;
+  }).join(''):'<div class="card empty"><b>No hay traslados en curso</b>Cuando adjudiques una oferta, el traslado aparece acá para seguimiento.</div>'}</div>`;
+}
+function cambiarEstado(id,estado){const t=trasladoById(id);t.estado=estado;t.actualizado=nowISO();saveDB();toast('Estado: '+(ESTADOS[estado]?.label||estado));render()}
+
+function viewHistorial(){
+  const fin=DB.traslados.filter(t=>['entregado','cancelado'].includes(t.estado));
+  return `<div class="topline"><div><h2>Historial</h2><p class="sub">Traslados entregados o cancelados.</p></div></div>
+  <div class="list">${fin.length?fin.map(t=>{const adj=ofertasDe(t.id).find(o=>o.estado==='adjudicada');return `<div class="row"><div style="flex:1">${routeChip(t)}<h3>${vehIcon(t.vehiculoReq)} ${t.tipoMercaderia} ${badge(t.estado)}</h3><p class="meta">${t.estado==='entregado'?'Transportista: '+provNombre(t.proveedorAdjudicado):'Cancelado'} · ${adj?money(adj.precio):money(t.presupuesto)}</p></div></div>`}).join(''):'<div class="card empty">Todavía no hay traslados finalizados.</div>'}</div>`;
+}
+
+function viewTransportistas(){
+  const ps=DB.proveedores;
+  return `<div class="topline"><div><h2>Transportistas</h2><p class="sub">Red de proveedores registrados en ServiLoG.</p></div></div>
+  <div class="grid-kpi"><div class="kpi"><label>Registrados</label><strong>${ps.length}</strong></div><div class="kpi"><label>Con camión</label><strong>${ps.filter(p=>p.vehiculos.some(v=>['camion','camion_chico','acoplado'].includes(v))).length}</strong></div><div class="kpi"><label>Refrigerado</label><strong>${ps.filter(p=>p.vehiculos.includes('refrigerado')).length}</strong></div><div class="kpi"><label>Última alta</label><strong style="font-size:15px">${ps.length?provNombre(ps[ps.length-1].id):'—'}</strong></div></div>
+  <div class="list">${ps.length?ps.map(p=>`<div class="row"><div style="flex:1"><h3>${p.empresa||`${p.nombre} ${p.apellido}`}</h3><p>CUIT ${p.cuit} · 📞 ${p.telefono} · ✉️ ${p.email}</p><p class="meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${p.vehiculos.map(v=>`<span class="veh-chip">${vehLabel(v)}</span>`).join('')}</p>${p.zonas?`<p class="meta">📍 ${p.zonas}</p>`:''}</div></div>`).join(''):'<div class="card empty">Aún no hay transportistas registrados.</div>'}</div>`;
+}
+
+/* =====================================================
+   11. PROVEEDOR · Oportunidades disponibles + ofertar
+   ===================================================== */
+function kpisProveedor(){
+  const disp=oportunidadesParaProveedor().filter(t=>!yaOferto(t.id)).length;
+  const mias=DB.ofertas.filter(o=>o.proveedorId===session.id);
+  const ganadas=mias.filter(o=>o.estado==='adjudicada').length;
+  return `<div class="grid-kpi">
+    <div class="kpi accent"><label>Oportunidades</label><strong>${disp}</strong><small>sin ofertar</small></div>
+    <div class="kpi"><label>Mis ofertas</label><strong>${mias.length}</strong><small>enviadas</small></div>
+    <div class="kpi"><label>Adjudicadas</label><strong>${ganadas}</strong><small>viajes ganados</small></div>
+    <div class="kpi"><label>Pendientes</label><strong>${mias.filter(o=>o.estado==='enviada').length}</strong><small>en evaluación</small></div>
+  </div>`;
+}
+function viewDisponibles(){
+  const u=currentUser();
+  const compatibles=oportunidadesParaProveedor().filter(t=>!yaOferto(t.id));
+  const flota=u.vehiculos.map(vehLabel).join(' · ');
+  return `<div class="topline"><div><h2>Oportunidades de traslado</h2><p class="sub">Solo ves los traslados que coinciden con tus vehículos: <b>${flota}</b>. Actualizá tu flota desde <a href="#" onclick="setActive('perfil');return false">Mi perfil</a>.</p></div></div>
+  ${kpisProveedor()}
+  <div class="list">${compatibles.length?compatibles.map(t=>rowOportunidadProv(t,true)).join(''):'<div class="card empty"><b>No hay oportunidades para tus vehículos ahora</b>Te avisaremos por email y WhatsApp cuando ServiLoG publique un traslado compatible con tu flota.<br><br><button class="btn btn-ghost" onclick="setActive(\'perfil\')">Editar mis vehículos</button></div>'}</div>`;
+}
+function rowOportunidadProv(t,compat){
+  const os=ofertasDe(t.id).length;
+  return `<div class="row"><div style="flex:1">
+    ${routeChip(t)}
+    <h3>${vehIcon(t.vehiculoReq)} ${t.tipoMercaderia} ${t.urgencia==='Urgente'||t.urgencia==='Inmediato'?'<span class="badge b-red">'+t.urgencia+'</span>':''}</h3>
+    <p>${t.peso?t.peso+' kg · ':''}Requiere: ${vehLabel(t.vehiculoReq)} · Retiro: ${t.fechaRetiro||'a coordinar'}</p>
+    <p class="meta">${os} oferta${os===1?'':'s'} hasta ahora · Presupuesto ref.: ${money(t.presupuesto)}</p>
+  </div><div class="row-actions">
+    <div class="money">${money(t.presupuesto)}</div>
+    <button class="btn btn-ghost btn-small" onclick="openDetalleProv('${t.id}')">Ver detalle</button>
+    <button class="btn btn-accent btn-small" onclick="openOfertaModal('${t.id}')">Ofertar</button>
+  </div></div>`;
+}
+function openDetalleProv(id){
+  const t=trasladoById(id);const mine=miOferta(id);
+  document.getElementById('modalRoot').innerHTML=`<div class="modal-bg"><div class="modal">
+    <h3>${t.origen} → ${t.destino}</h3>
+    <p>${vehIcon(t.vehiculoReq)} ${t.tipoMercaderia} · Requiere ${vehLabel(t.vehiculoReq)}</p>
+    ${timeline(t.estado)}
+    <div class="detail-grid">
+      <div class="detail-cell"><small>Peso</small><b>${t.peso?t.peso+' kg':'No especificado'}</b></div>
+      <div class="detail-cell"><small>Volumen / carga</small><b>${t.volumen||'—'}</b></div>
+      <div class="detail-cell"><small>Retiro</small><b>${t.fechaRetiro||'A coordinar'}</b></div>
+      <div class="detail-cell"><small>Urgencia</small><b>${t.urgencia}</b></div>
+      <div class="detail-cell"><small>Presupuesto ref.</small><b>${money(t.presupuesto)}</b></div>
+      <div class="detail-cell"><small>Ofertas recibidas</small><b>${ofertasDe(t.id).length}</b></div>
+    </div>
+    <p style="font-size:13px;color:var(--ink2);line-height:1.5">${t.observaciones||'Sin observaciones.'}</p>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cerrar</button>${mine?`<span class="badge ${mine.estado==='adjudicada'?'b-green':'b-blue'}" style="align-self:center">Ya ofertaste · ${money(mine.precio)}</span>`:`<button class="btn btn-accent" onclick="openOfertaModal('${t.id}')">Ofertar</button>`}</div>
+  </div></div>`;
+}
+function openOfertaModal(id){
+  const t=trasladoById(id);const u=currentUser();const mine=miOferta(id);
+  const vehOpts=u.vehiculos.length?u.vehiculos:VEHICULOS.map(v=>v[0]);
+  document.getElementById('modalRoot').innerHTML=`<div class="modal-bg"><div class="modal" style="max-width:560px">
+    <h3>${mine?'Editar oferta':'Enviar oferta'}</h3>
+    <p>${t.origen} → ${t.destino} · ${t.tipoMercaderia} · requiere ${vehLabel(t.vehiculoReq)}</p>
+    <div class="form-grid">
+      <div class="field"><label>Precio ofertado ($) *</label><input id="ofPrecio" type="number" min="0" value="${mine?mine.precio:''}" placeholder="Ej: 350000"></div>
+      <div class="field"><label>Vehículo que asignás *</label><select id="ofVeh">${vehOpts.map(v=>`<option value="${v}" ${mine?(mine.vehiculo===v?'selected':''):(v===t.vehiculoReq?'selected':'')}>${vehLabel(v)}</option>`).join('')}</select></div>
+    </div>
+    <div class="field"><label>Plazo / disponibilidad *</label><input id="ofPlazo" value="${mine?mine.plazo:''}" placeholder="Ej: retiro hoy 18hs, entrega en 48hs"></div>
+    <div class="field"><label>Comentario</label><textarea id="ofCom" placeholder="Seguro de carga, autoelevador propio, monitoreo, garantías, etc.">${mine?mine.comentario:''}</textarea></div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-accent" onclick="enviarOferta('${id}')">${mine?'Actualizar oferta':'Enviar oferta'}</button></div>
+  </div></div>`;
+}
+function enviarOferta(id){
+  const precio=Number(document.getElementById('ofPrecio').value)||0;
+  const plazo=(document.getElementById('ofPlazo').value||'').trim();
+  if(!precio){toast('Indicá un precio');return}
+  if(!plazo){toast('Indicá plazo / disponibilidad');return}
+  const data={precio,vehiculo:document.getElementById('ofVeh').value,plazo,comentario:(document.getElementById('ofCom').value||'').trim()};
+  const t=trasladoById(id);const mine=miOferta(id);
+  if(mine){Object.assign(mine,data);toast('Oferta actualizada')}
+  else{DB.ofertas.push({id:uid('of'),trasladoId:id,proveedorId:session.id,...data,estado:'enviada',fecha:nowISO()});toast('¡Oferta enviada! ServiLoG la va a evaluar.')}
+  if(t.estado==='publicado') t.estado='recibiendo';
+  saveDB();closeModal();render();
+}
+
+/* =====================================================
+   12. PROVEEDOR · Mis ofertas / Mis viajes / Perfil
+   ===================================================== */
+function viewMisPostulaciones(){
+  const mias=DB.ofertas.filter(o=>o.proveedorId===session.id).slice().reverse();
+  return `<div class="topline"><div><h2>Mis ofertas</h2><p class="sub">Ofertas que enviaste a ServiLoG y su estado.</p></div></div>
+  <div class="list">${mias.length?mias.map(o=>{const t=trasladoById(o.trasladoId)||{};const cls=o.estado==='adjudicada'?'b-green':o.estado==='rechazada'||o.estado==='descartada'?'b-gray':'b-blue';return `<div class="row"><div style="flex:1">${t.origen?routeChip(t):''}<h3>${vehIcon(o.vehiculo)} ${t.tipoMercaderia||'Traslado'} <span class="badge ${cls}">${o.estado==='enviada'?'En evaluación':o.estado}</span></h3><p>${o.plazo} · ${o.comentario||'Sin comentario'}</p></div><div class="row-actions"><div class="money">${money(o.precio)}</div>${o.estado==='enviada'&&['publicado','recibiendo'].includes(t.estado)?`<button class="btn btn-ghost btn-small" onclick="openOfertaModal('${t.id}')">Editar</button>`:''}</div></div>`}).join(''):'<div class="card empty"><b>Todavía no enviaste ofertas</b>Mirá las oportunidades disponibles y enviá tu primera propuesta.<br><br><button class="btn btn-accent" onclick="setActive(\'disponibles\')">Ver oportunidades</button></div>'}</div>`;
+}
+function viewMisViajes(){
+  const ids=DB.ofertas.filter(o=>o.proveedorId===session.id&&o.estado==='adjudicada').map(o=>o.trasladoId);
+  const viajes=DB.traslados.filter(t=>ids.includes(t.id));
+  const enCurso=viajes.filter(t=>['adjudicado','en_ruta'].includes(t.estado));
+  const fin=viajes.filter(t=>['entregado','cancelado'].includes(t.estado));
+  const row=t=>{const o=miOferta(t.id);return `<div class="card" style="padding:18px">${routeChip(t)}<h3 style="margin:0 0 4px">${vehIcon(t.vehiculoReq)} ${t.tipoMercaderia} ${badge(t.estado)}</h3>${timeline(t.estado)}<p style="margin:8px 0 0">${money(o?o.precio:0)} · Retiro: ${t.fechaRetiro||'a coordinar'}</p><p class="meta">${t.observaciones||''}</p></div>`};
+  return `<div class="topline"><div><h2>Mis viajes</h2><p class="sub">Traslados que ganaste, en curso y completados.</p></div></div>
+  ${enCurso.length?`<h3 style="margin:6px 0 10px">En curso</h3><div class="list">${enCurso.map(row).join('')}</div>`:''}
+  ${fin.length?`<h3 style="margin:22px 0 10px">Completados</h3><div class="list">${fin.map(row).join('')}</div>`:''}
+  ${!viajes.length?'<div class="card empty"><b>Todavía no ganaste viajes</b>Cuando ServiLoG adjudique una de tus ofertas, el viaje aparece acá.</div>':''}`;
+}
+function viewPerfil(){
+  const u=currentUser();
+  return `<div class="topline"><div><h2>Mi perfil</h2><p class="sub">Tus datos y vehículos. Mantenelos al día para recibir las mejores oportunidades.</p></div></div>
+  <div class="card form" style="padding:24px">
+    <div class="form-grid">
+      <div class="field"><label>Nombre</label><input id="pNombre" value="${u.nombre||''}"></div>
+      <div class="field"><label>Apellido</label><input id="pApellido" value="${u.apellido||''}"></div>
+      <div class="field"><label>Empresa / razón social</label><input id="pEmpresa" value="${u.empresa||''}"></div>
+      <div class="field"><label>CUIT / CUIL</label><input id="pCuit" value="${u.cuit||''}"></div>
+      <div class="field"><label>Teléfono / WhatsApp</label><input id="pTel" value="${u.telefono||''}"></div>
+      <div class="field"><label>Email</label><input id="pEmail" value="${u.email||''}" disabled></div>
+      <div class="field"><label>Zonas donde operás</label><input id="pZonas" value="${u.zonas||''}" placeholder="Ej: AMBA y Litoral"></div>
+    </div>
+    <div class="field"><label>Mis vehículos</label><div class="veh-checks">${VEHICULOS.map(v=>`<label><input type="checkbox" value="${v[0]}" ${u.vehiculos.includes(v[0])?'checked':''}><span>${v[1]} ${v[2]}</span></label>`).join('')}</div></div>
+    <button class="btn btn-accent" onclick="guardarPerfil()">Guardar cambios</button>
+  </div>`;
+}
+function guardarPerfil(){
+  const u=currentUser();const g=id=>(document.getElementById(id).value||'').trim();
+  u.nombre=g('pNombre');u.apellido=g('pApellido');u.empresa=g('pEmpresa');u.cuit=g('pCuit');u.telefono=g('pTel');u.zonas=g('pZonas');
+  u.vehiculos=[...document.querySelectorAll('.veh-checks input:checked')].map(c=>c.value);
+  if(!u.nombre||!u.apellido){toast('Completá nombre y apellido');return}
+  if(!u.vehiculos.length){toast('Seleccioná al menos un vehículo');return}
+  saveDB();toast('Perfil actualizado');render();
+}
+
+/* =====================================================
+   13. MAPA (Leaflet · rutas origen→destino)
+   ===================================================== */
+function viewMapa(){
+  const titulo=role==='empresa'?'Mapa de envíos':'Mapa de oportunidades';
+  const sub=role==='empresa'?'Visualizá todas las rutas de traslado y su estado en tiempo real.':'Rutas de las oportunidades publicadas por ServiLoG.';
+  return `<div class="topline"><div><h2>${titulo}</h2><p class="sub">${sub}</p></div></div>
+  <div class="map-toolbar">
+    <div class="field"><label>Origen</label><select onchange="setMapFilter('origen',this.value)"><option ${mapFilters.origen==='Todas'?'selected':''}>Todas</option>${CIUDAD_NOMBRES.map(c=>`<option ${mapFilters.origen===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="field"><label>Destino</label><select onchange="setMapFilter('destino',this.value)"><option ${mapFilters.destino==='Todas'?'selected':''}>Todas</option>${CIUDAD_NOMBRES.map(c=>`<option ${mapFilters.destino===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="field"><label>Vehículo</label><select onchange="setMapFilter('vehiculo',this.value)"><option ${mapFilters.vehiculo==='Todos'?'selected':''}>Todos</option>${VEHICULOS.map(v=>`<option value="${v[0]}" ${mapFilters.vehiculo===v[0]?'selected':''}>${v[2]}</option>`).join('')}</select></div>
+    <div class="field"><label>Estado</label><select onchange="setMapFilter('estado',this.value)"><option ${mapFilters.estado==='Todos'?'selected':''}>Todos</option>${Object.entries(ESTADOS).map(([k,e])=>`<option value="${k}" ${mapFilters.estado===k?'selected':''}>${e.label}</option>`).join('')}</select></div>
+  </div>
+  <div class="card map-card"><div class="map-head"><b>${trasladosFiltradosMapa().length} traslado(s) en el mapa</b><div class="legend"><span><i style="background:#8A969C"></i>Publicado</span><span><i style="background:#2196B0"></i>Recibiendo</span><span><i style="background:#F5A524"></i>En curso</span><span><i style="background:#10A45A"></i>Entregado</span></div></div>
+  <div id="map" class="leaflet-map"></div></div>`;
+}
+let mapInstance=null;
+function estadoColor(estado){return {publicado:'#8A969C',recibiendo:'#2196B0',adjudicado:'#F5A524',en_ruta:'#F5A524',entregado:'#10A45A',cancelado:'#B0B8BC'}[estado]||'#2196B0'}
+function initMapa(){
+  const el=document.getElementById('map');if(!el) return;
+  const items=trasladosFiltradosMapa();
+  if(typeof L==='undefined'){el.outerHTML='<div class="fallback-map">No se pudo cargar el mapa base. Verificá tu conexión a internet.</div>';return}
+  if(mapInstance){mapInstance.remove();mapInstance=null}
+  mapInstance=L.map(el,{zoomControl:true,scrollWheelZoom:true}).setView([-38.5,-63.5],4);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd',attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(mapInstance);
+  const bounds=[];
+  items.forEach(t=>{
+    const o=CIUDADES[t.origen],d=CIUDADES[t.destino];
+    if(!o||!d) return;
+    const color=estadoColor(t.estado);
+    bounds.push(o,d);
+    L.polyline([o,d],{color,weight:3,opacity:.65,dashArray:t.estado==='en_ruta'?'1,0':'6,8'}).addTo(mapInstance);
+    // origen
+    L.marker(o,{icon:pinIcon(color,'📦')}).addTo(mapInstance).bindPopup(popupHtml(t));
+    // destino
+    L.marker(d,{icon:pinIcon(color,'🏁')}).addTo(mapInstance).bindPopup(popupHtml(t));
+  });
+  setTimeout(()=>{mapInstance.invalidateSize(true);if(bounds.length)mapInstance.fitBounds(bounds,{padding:[50,50],maxZoom:6})},150);
+}
+function pinIcon(color,emoji){
+  return L.divIcon({className:'',html:`<div class="truck-pin" style="--pc:${color}"><div class="pb"></div><div class="pi">${emoji}</div></div>`,iconSize:[34,46],iconAnchor:[17,44],popupAnchor:[0,-44]});
+}
+function popupHtml(t){
+  const os=ofertasDe(t.id).length;
+  const accion=role==='empresa'
+    ? `<button class="btn btn-ghost" onclick="closeAllPopups();openDetalle('${t.id}')">Ver ofertas (${os})</button>`
+    : (['publicado','recibiendo'].includes(t.estado)?`<button class="btn btn-accent" onclick="closeAllPopups();openOfertaModal('${t.id}')">Ofertar</button>`:`<button class="btn btn-ghost" onclick="closeAllPopups();openDetalleProv('${t.id}')">Ver</button>`);
+  return `<h3>${t.origen} → ${t.destino}</h3><p>${vehIcon(t.vehiculoReq)} ${t.tipoMercaderia} · ${vehLabel(t.vehiculoReq)}<br>${t.peso?t.peso+' kg · ':''}${money(t.presupuesto)} · ${ESTADOS[t.estado]?.label||t.estado}</p><div class="pa">${accion}</div>`;
+}
+function closeAllPopups(){if(mapInstance)mapInstance.closePopup()}
+
+/* =====================================================
+   14. Landing stats + arranque
+   ===================================================== */
+function actualizarLandingStats(){
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+  set('ls-traslados',DB.traslados.filter(t=>t.estado!=='cancelado').length);
+  set('ls-ofertas',DB.ofertas.length);
+  set('ls-proveedores',DB.proveedores.length);
+  set('ls-entregados',DB.traslados.filter(t=>t.estado==='entregado').length);
+}
+
+loadDB();
+loadSession();
+actualizarLandingStats();
+if(session&&currentUser()) enterApp();
+</script>
+</body>
+</html>
