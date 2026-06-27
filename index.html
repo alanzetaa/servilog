@@ -346,8 +346,8 @@ function currentUser(){
   if(session.rol==='empresa') return {id:'servilog',rol:'empresa',nombre:'ServiLoG',empresa:'ServiLoG Operaciones'};
   return DB.proveedores.find(p=>p.id===session.id)||null;
 }
-function saveSession(){session?localStorage.setItem(SES_KEY,JSON.stringify(session)):localStorage.removeItem(SES_KEY)}
-function loadSession(){try{const raw=localStorage.getItem(SES_KEY);if(raw)session=JSON.parse(raw)}catch(e){session=null}}
+/* La sesión NO se persiste: cada vez que se abre la URL, la app arranca desde el inicio. */
+function saveSession(){localStorage.removeItem(SES_KEY)}
 
 let role='empresa', active='oportunidades';
 
@@ -873,9 +873,8 @@ function actualizarLandingStats(){
 }
 
 loadDB();
-loadSession();
+localStorage.removeItem(SES_KEY); // siempre arranca en el inicio
 actualizarLandingStats();
-if(session&&currentUser()) enterApp();
 </script>
 </body>
 </html>
